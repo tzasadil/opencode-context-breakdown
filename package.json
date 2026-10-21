@@ -1,0 +1,17 @@
+{
+  "name": "opencode-context-breakdown",
+  "version": "0.1.0",
+  "description": "OpenCode v2 plugin: /context shows what fills the context window (system prompt, tools, conversation, tool results).",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tzasadil/opencode-context-breakdown.git"
+  },
+  "keywords": ["opencode", "opencode-plugin", "context", "tokens"],
+  "exports": {
+    ".": "./server.js",
+    "./tui": "./tui.js"
+  }
+}
