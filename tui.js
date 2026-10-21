@@ -4,6 +4,11 @@ const formatTokens = (n) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
 const formatShare = (part, whole) => (whole > 0 ? `${((part / whole) * 100).toFixed(1)}%` : "-");
 
+// The select dialog does not wrap or ellipsize titles. A long title runs into
+// the footer column, so clip it to leave room for the numbers.
+const LABEL_WIDTH = 40;
+const clip = (label) => (label.length > LABEL_WIDTH ? `${label.slice(0, LABEL_WIDTH - 1)}…` : label);
+
 // The provider's real prompt size for the latest completed request.
 // `input` excludes cache reads and writes, so all three add up to the prompt.
 function lastUsage(messages) {
@@ -40,9 +45,9 @@ export function breakdownRows(snapshot, usage, limit) {
     const sum = group.items.reduce((s, item) => s + tokens(item), 0);
     return { title: group.name, value: `group:${group.name}`, footer: `${formatTokens(sum)}  ${formatShare(sum, total)}`, category: "Summary" };
   });
-  if (limit) {
-    rows.push({ title: "Free", value: "free", footer: `${formatTokens(Math.max(limit - total, 0))}  ${formatShare(Math.max(limit - total, 0), limit)}`, category: "Summary" });
-  }
+  // No percent: the other rows are shares of the used context, this one would
+  // be a share of the window. The title already shows how full the window is.
+  if (limit) rows.push({ title: "Free", value: "free", footer: formatTokens(Math.max(limit - total, 0)), category: "Summary" });
 
   for (const group of snapshot.groups) {
     const items = [...group.items].sort((a, b) => tokens(b) - tokens(a));
@@ -51,7 +56,7 @@ export function breakdownRows(snapshot, usage, limit) {
         .filter(Boolean)
         .join(", ");
       rows.push({
-        title: item.label,
+        title: clip(item.label),
         value: `${group.name}:${item.label}`,
         description: detail || undefined,
         footer: `${formatTokens(tokens(item))}  ${formatShare(tokens(item), total)}`,

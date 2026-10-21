@@ -30,11 +30,62 @@ const MEDIA_TOKENS = 1500;
 const textLength = (value) =>
   typeof value === "string" ? value.length : value === undefined ? 0 : JSON.stringify(value).length;
 
+// Not clipped here: the TUI clips labels to the dialog width.
 const firstLine = (text) => {
   const line = text.split("\n").find((l) => l.trim()) ?? "(empty)";
-  const clean = line.trim().replace(/^#+\s*/, "");
-  return clean.length > 60 ? `${clean.slice(0, 57)}...` : clean;
+  return line.trim().replace(/^#+\s*/, "");
 };
+
+// OpenCode joins several blocks into one system part. Each block opens with a
+// fixed line. Splitting on those lines turns one opaque row into rows for the
+// Code Mode tool catalog, MCP server instructions, skills, and each rules file.
+// Block lines and formats come from OpenCode 2.1.2. Text before the first known
+// block keeps the part's first line as its label, so an unknown format degrades
+// to one row per part.
+const shortPath = (path) => {
+  const file = path.split("/").pop();
+  const dir = path.slice(0, -file.length - 1).replace(/^\/(home|Users)\/[^/]+/, "~");
+  return `${file} · ${dir}`;
+};
+
+const SYSTEM_BLOCKS = [
+  {
+    start: /^# Code Mode$/,
+    label: () => "Code Mode",
+    // `- <namespace> (N tools[, M shown]) // description`. One namespace per MCP server.
+    row: /^- (\S+) \((\d+) tools?\b/,
+    rowLabel: (m) => `Code Mode: ${m[1]}`,
+    rowCount: (m) => Number(m[2]),
+  },
+  {
+    start: /^<mcp_instructions>$/,
+    label: () => "MCP instructions",
+    row: /^ {2}<server name="([^"]+)">$/,
+    rowLabel: (m) => `MCP instructions: ${m[1]}`,
+    rowCount: () => 1,
+  },
+  { start: /^Skills provide specialized instructions/, label: () => "Skills" },
+  { start: /^Project references provide additional directories/, label: () => "Project references" },
+  { start: /^Instructions from: (.+)$/, label: (m) => `Rules: ${shortPath(m[1])}` },
+];
+
+function measureSystemPart(text, position) {
+  const rows = [{ label: `${position}. ${firstLine(text)}`, chars: 0, count: 1 }];
+  let block;
+  for (const line of text.split("\n")) {
+    const opened = SYSTEM_BLOCKS.map((b) => [b, b.start.exec(line)]).find(([, m]) => m);
+    if (opened) {
+      block = opened[0];
+      rows.push({ label: `${position}. ${block.label(opened[1])}`, chars: 0, count: 1 });
+    } else {
+      const m = block?.row?.exec(line);
+      if (m) rows.push({ label: `${position}. ${block.rowLabel(m)}`, chars: 0, count: block.rowCount(m) });
+    }
+    rows.at(-1).chars += line.length + 1;
+  }
+  // Drop the leading row when the part starts with a known block.
+  return rows.filter((row) => row.chars > 0);
+}
 
 const bump = (map, key, chars, extra) => {
   const item = map.get(key) ?? { label: key, chars: 0, count: 0 };
@@ -58,11 +109,7 @@ const toolResultChars = (result) => {
 // Summarises one model request. Stores sizes only, never the content, so a
 // snapshot stays a few KB even when the request is megabytes.
 export function measureContext({ system, messages, tools, model, agent }) {
-  const systemItems = system.map((part, index) => ({
-    label: `${index + 1}. ${firstLine(part.text)}`,
-    chars: part.text.length,
-    count: 1,
-  }));
+  const systemItems = system.flatMap((part, index) => measureSystemPart(part.text, index + 1));
 
   const toolItems = Object.entries(tools).map(([name, tool]) => ({
     label: name,

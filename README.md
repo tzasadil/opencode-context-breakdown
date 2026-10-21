@@ -10,10 +10,12 @@ Summary
   Tool definitions            6.9k  16.7%
   Conversation                3.1k   7.5%
   Tool calls + results       17.1k  41.4%
-  Free                      158.7k  79.4%
+  Free                      158.7k
 System prompt
-  3. Code Mode                6.2k  15.0%
-  1. You are an AI agent...   361    0.9%
+  3. Rules: AGENTS.md · ~/.config/op…  2.0k   4.8%
+  3. Skills                            1.6k   3.9%
+  3. Code Mode: semble                 1.1k   2.7%
+  1. You are an AI agent running in…   368    0.9%
 Tool definitions
   mcp: context7               1.7k   4.1%
   subagent                    658    1.6%
@@ -25,7 +27,7 @@ Tool calls + results
 
 Each row is one item:
 
-- **System prompt:** each system part, labeled by its first line.
+- **System prompt:** OpenCode joins several blocks into one system part. The plugin splits them into rows: Code Mode tools per MCP server, MCP server instructions, skills, and each rules file. Other text keeps the part's first line as its label.
 - **Tool definitions:** each tool schema. MCP tools are grouped by server.
 - **Conversation:** user text, assistant text, reasoning, media, compaction summaries.
 - **Tool calls + results:** input plus output per tool, with the call count.
@@ -81,7 +83,7 @@ The plugin has two halves:
 ## Limitations
 
 - Snapshots live in memory. After a server restart, `/context` shows nothing until the next message in that session.
-- With Code Mode enabled, MCP tools sit inside one system part ("Code Mode") and are not split per server.
+- The system part split matches the prompt wording of OpenCode 2.1.2. If a later version changes it, the affected part shows as one row.
 - Only requests made after the plugin loads are measured.
 
 ## License
